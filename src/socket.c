@@ -78,7 +78,7 @@ gai_strerror(int errcode)
 }
 
 static int
-getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags)
+_getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags)
 {
   void *addr;
   unsigned short port;
@@ -122,7 +122,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt)
 	memset(&in, 0, sizeof(in));
 	in.sin_family = AF_INET;
 	memcpy(&in.sin_addr, src, sizeof(struct in_addr));
-	getnameinfo((struct sockaddr *)&in, sizeof(struct
+	_getnameinfo((struct sockaddr *)&in, sizeof(struct
 		    sockaddr_in), dst, cnt, NULL, 0, NI_NUMERICHOST);
 	return dst;
     }
@@ -132,7 +132,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt)
 	memset(&in, 0, sizeof(in));
 	in.sin6_family = AF_INET6;
 	memcpy(&in.sin6_addr, src, sizeof(struct in_addr6));
-	getnameinfo((struct sockaddr *)&in, sizeof(struct
+	_getnameinfo((struct sockaddr *)&in, sizeof(struct
 		    sockaddr_in6), dst, cnt, NULL, 0, NI_NUMERICHOST);
 	return dst;
     }
@@ -237,7 +237,7 @@ mrb_addrinfo_getaddrinfo(mrb_state *mrb, mrb_value klass)
 }
 
 static mrb_value
-mrb_addrinfo_getnameinfo(mrb_state *mrb, mrb_value self)
+mrb_addrinfo__getnameinfo(mrb_state *mrb, mrb_value self)
 {
   mrb_int flags;
   mrb_value ary, host, sastr, serv;
@@ -252,9 +252,9 @@ mrb_addrinfo_getnameinfo(mrb_state *mrb, mrb_value self)
   if (!mrb_string_p(sastr)) {
     mrb_raise(mrb, E_SOCKET_ERROR, "invalid sockaddr");
   }
-  error = getnameinfo((struct sockaddr *)RSTRING_PTR(sastr), (socklen_t)RSTRING_LEN(sastr), RSTRING_PTR(host), NI_MAXHOST, RSTRING_PTR(serv), NI_MAXSERV, flags);
+  error = _getnameinfo((struct sockaddr *)RSTRING_PTR(sastr), (socklen_t)RSTRING_LEN(sastr), RSTRING_PTR(host), NI_MAXHOST, RSTRING_PTR(serv), NI_MAXSERV, flags);
   if (error != 0) {
-    mrb_raisef(mrb, E_SOCKET_ERROR, "getnameinfo: %s", gai_strerror(error));
+    mrb_raisef(mrb, E_SOCKET_ERROR, "_getnameinfo: %s", gai_strerror(error));
   }
   ary = mrb_ary_new_capa(mrb, 2);
   mrb_str_resize(mrb, host, strlen(RSTRING_PTR(host)));
@@ -299,8 +299,8 @@ sa2addrlist(mrb_state *mrb, const struct sockaddr *sa, socklen_t salen)
   }
   port = ntohs(port);
   host = mrb_str_buf_new(mrb, NI_MAXHOST);
-  if (getnameinfo(sa, salen, RSTRING_PTR(host), NI_MAXHOST, NULL, 0, NI_NUMERICHOST) == -1)
-    mrb_sys_fail(mrb, "getnameinfo");
+  if (_getnameinfo(sa, salen, RSTRING_PTR(host), NI_MAXHOST, NULL, 0, NI_NUMERICHOST) == -1)
+    mrb_sys_fail(mrb, "_getnameinfo");
   mrb_str_resize(mrb, host, strlen(RSTRING_PTR(host)));
   ary = mrb_ary_new_capa(mrb, 4);
   mrb_ary_push(mrb, ary, mrb_str_new_cstr(mrb, afstr));
@@ -879,7 +879,7 @@ mrb_mruby_socket_gem_init(mrb_state* mrb)
   ai = mrb_define_class(mrb, "Addrinfo", mrb->object_class);
   mrb_mod_cv_set(mrb, ai, mrb_intern_lit(mrb, "_lastai"), mrb_nil_value());
   mrb_define_class_method(mrb, ai, "getaddrinfo", mrb_addrinfo_getaddrinfo, MRB_ARGS_REQ(2)|MRB_ARGS_OPT(4));
-  mrb_define_method(mrb, ai, "getnameinfo", mrb_addrinfo_getnameinfo, MRB_ARGS_OPT(1));
+  mrb_define_method(mrb, ai, "_getnameinfo", mrb_addrinfo__getnameinfo, MRB_ARGS_OPT(1));
 #if !defined(_WIN32) && !defined(ESP_PLATFORM)
   mrb_define_method(mrb, ai, "unix_path", mrb_addrinfo_unix_path, MRB_ARGS_NONE());
 #endif
